@@ -54,7 +54,7 @@
         </div>
         <p class="instructions">
             • 언어 탭 클릭해 기본 표시 면(단어/의미) 선택<br>
-            • 카드 클릭 시 단어만 발음 재생됩니다
+            • 카드 클릭 시 영어 단어(face=0)만 원어민 목소리로 발음 재생됩니다
         </p>
         <div id="chapters-list"><div class="loading">데이터 로딩 중...</div></div>
     </div>
@@ -124,7 +124,7 @@
             ];
             faces.forEach(face => {
                 const div = document.createElement('div'); div.className = `card-face ${face.cls}`;
-                div.innerHTML = `<div class="${face.cls.replace('-face','')}-text">${face.text}</div>`;
+                div.innerHTML = `<div class=\"${face.cls.replace('-face','')}-text\">${face.text}</div>`;
                 slider.appendChild(div);
             });
             slider.style.transform = `translateX(-${currentIndex * 33.333}%)`;
@@ -133,31 +133,24 @@
                 const dot = document.createElement('div');
                 dot.className = i === currentIndex ? 'nav-dot active' : 'nav-dot'; dot.dataset.idx = i;
                 dot.addEventListener('click', e => {
-                    e.stopPropagation();
-                    resetAllCards();
-                    currentIndex = i;
-                    slider.style.transform = `translateX(-${i * 33.333}%)`;
+                    e.stopPropagation(); resetAllCards(); currentIndex = i; slider.style.transform = `translateX(-${i * 33.333}%)`;
                     nav.querySelectorAll('.nav-dot').forEach((d, di) => d.classList.toggle('active', di === i));
-                    // TTS playback: only for English word (face index 0)
+                    // TTS: only for face index 0
                     if ('speechSynthesis' in window && currentIndex === 0) {
                         const utter = new SpeechSynthesisUtterance(faces[currentIndex].text);
-                        utter.lang = 'en-US';
-                        speechSynthesis.speak(utter);
+                        utter.lang = 'en-US'; speechSynthesis.speak(utter);
                     }
                 });
                 nav.appendChild(dot);
             });
             card.append(slider, nav);
             card.addEventListener('click', () => {
-                resetAllCards();
-                currentIndex = (currentIndex + 1) % faces.length;
-                slider.style.transform = `translateX(-${currentIndex * 33.333}%)`;
+                resetAllCards(); currentIndex = (currentIndex + 1) % faces.length; slider.style.transform = `translateX(-${currentIndex * 33.333}%)`;
                 nav.querySelectorAll('.nav-dot').forEach((d, di) => d.classList.toggle('active', di === currentIndex));
-                // TTS playback: only for English word (face index 0)
+                // TTS: only for face index 0
                 if ('speechSynthesis' in window && currentIndex === 0) {
                     const utter = new SpeechSynthesisUtterance(faces[currentIndex].text);
-                    utter.lang = 'en-US';
-                    speechSynthesis.speak(utter);
+                    utter.lang = 'en-US'; speechSynthesis.speak(utter);
                 }
             });
             return card;
