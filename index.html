@@ -54,7 +54,7 @@
         </div>
         <p class="instructions">
             • 언어 탭 클릭해 기본 표시 면(단어/의미) 선택<br>
-            • 카드 클릭 시 영어 단어(face=0)만 원어민 목소리로 발음 재생됩니다
+            • 카드 클릭 시 영어 단어(face=0)에서만 원어민 목소리로 발음 재생됩니다
         </p>
         <div id="chapters-list"><div class="loading">데이터 로딩 중...</div></div>
     </div>
@@ -70,8 +70,8 @@
             ]},
             { title: "Unit 2: Today's Weather", words: [
                 { word: "snowy", pronunciation: "/ˈsnoʊi/", meaning: "눈이 내리는" },
-                { word: "rainy", pronunciation: "/ˈreɪ니/", meaning: "비가 내리는" },
-                { word: "sunny", pronunciation: "/ˈsʌ니/", meaning: "맑은, 해가 비치는" },
+                { word: "rainy", pronunciation: "/ˈreɪni/", meaning: "비가 내리는" },
+                { word: "sunny", pronunciation: "/ˈsʌni/", meaning: "맑은, 해가 비치는" },
                 { word: "cloudy", pronunciation: "/ˈklaʊ디/", meaning: "구름 낀" },
                 { word: "foggy", pronunciation: "/ˈfɑːɡi/", meaning: "안개 낀" }
             ]}
@@ -101,7 +101,7 @@
             vocabData.forEach((chapter, idx) => {
                 const chapDiv = document.createElement('div'); chapDiv.className = 'chapter-container';
                 const title = document.createElement('div'); title.className = 'chapter-title';
-                title.innerHTML = `<span>${chapter.title}</span><span class="chapter-toggle">▼</span>`;
+                title.innerHTML = `<span>${chapter.title}</span><span class=\"chapter-toggle\">▼</span>`;
                 const wordsDiv = document.createElement('div'); wordsDiv.className = 'words-container';
                 if (idx === 0) { wordsDiv.classList.add('expanded'); title.querySelector('.chapter-toggle').textContent = '▲'; }
                 chapter.words.forEach(word => wordsDiv.appendChild(createWordCard(word)));
@@ -111,6 +111,12 @@
                 });
                 chapDiv.append(title, wordsDiv); container.append(chapDiv);
             });
+        }
+
+        // Select English voice explicitly
+        function getEnglishVoice() {
+            const voices = window.speechSynthesis.getVoices();
+            return voices.find(v => v.lang.startsWith('en')) || null;
         }
 
         function createWordCard(data) {
@@ -133,28 +139,40 @@
                 const dot = document.createElement('div');
                 dot.className = i === currentIndex ? 'nav-dot active' : 'nav-dot'; dot.dataset.idx = i;
                 dot.addEventListener('click', e => {
-                    e.stopPropagation(); resetAllCards(); currentIndex = i; slider.style.transform = `translateX(-${i * 33.333}%)`;
+                    e.stopPropagation();
+                    resetAllCards();
+                    currentIndex = i;
+                    slider.style.transform = `translateX(-${i * 33.333}%)`;
                     nav.querySelectorAll('.nav-dot').forEach((d, di) => d.classList.toggle('active', di === i));
                     // TTS: only for face index 0
                     if ('speechSynthesis' in window && currentIndex === 0) {
                         const utter = new SpeechSynthesisUtterance(faces[currentIndex].text);
-                        utter.lang = 'en-US'; speechSynthesis.speak(utter);
+                        utter.lang = 'en-US';
+                        const enVoice = getEnglishVoice(); if (enVoice) utter.voice = enVoice;
+                        speechSynthesis.speak(utter);
                     }
                 });
                 nav.appendChild(dot);
             });
             card.append(slider, nav);
             card.addEventListener('click', () => {
-                resetAllCards(); currentIndex = (currentIndex + 1) % faces.length; slider.style.transform = `translateX(-${currentIndex * 33.333}%)`;
+                resetAllCards();
+                currentIndex = (currentIndex + 1) % faces.length;
+                slider.style.transform = `translateX(-${currentIndex * 33.333}%)`;
                 nav.querySelectorAll('.nav-dot').forEach((d, di) => d.classList.toggle('active', di === currentIndex));
                 // TTS: only for face index 0
                 if ('speechSynthesis' in window && currentIndex === 0) {
                     const utter = new SpeechSynthesisUtterance(faces[currentIndex].text);
-                    utter.lang = 'en-US'; speechSynthesis.speak(utter);
+                    utter.lang = 'en-US';
+                    const enVoice = getEnglishVoice(); if (enVoice) utter.voice = enVoice;
+                    speechSynthesis.speak(utter);
                 }
             });
             return card;
         }
+
+        // Ensure voices are loaded
+        window.speechSynthesis.onvoiceschanged = () => {};
 
         document.addEventListener('DOMContentLoaded', initializeApp);
     </script>
