@@ -778,23 +778,80 @@
     }
 
     function createWordCard(data) {
-      /* --- 여기에 원본 createWordCard 함수 전체를 그대로 붙여넣으세요 --- */
-        const container = document.getElementById('chapters-list');
-        container.innerHTML = '';
-        vocabData.forEach((chapter, idx) => {
-            const chapDiv = document.createElement('div'); chapDiv.className = 'chapter-container';
-            const title = document.createElement('div'); title.className = 'chapter-title';
-            title.innerHTML = `<span>${chapter.title}</span><span class="chapter-toggle">▼</span>`;
-            const wordsDiv = document.createElement('div'); wordsDiv.className = 'words-container';
-            if(idx===0) { wordsDiv.classList.add('expanded'); title.querySelector('.chapter-toggle').textContent='▲'; }
-            chapter.words.forEach(word => wordsDiv.appendChild(createWordCard(word)));
-            title.addEventListener('click', () => {
-                wordsDiv.classList.toggle('expanded');
-                title.querySelector('.chapter-toggle').textContent = wordsDiv.classList.contains('expanded') ? '▲':'▼';
-            });
-            chapDiv.append(title, wordsDiv); container.append(chapDiv);
-        });
+  const card = document.createElement('div');
+  card.className = 'word-card';
+
+  // 1) 슬라이더 컨테이너
+  const slider = document.createElement('div');
+  slider.className = 'card-slider';
+
+  // 현재 보여질 face 인덱스(전역 defaultFaceIndex와 동기화)
+  let currentIndex = defaultFaceIndex;
+
+  // 2) 3가지 face 정의
+  const faces = [
+    { cls: 'word-face', text: data.word },
+    { cls: 'pronunciation-face', text: data.pronunciation },
+    { cls: 'meaning-face', text: data.meaning }
+  ];
+
+  // 3) face 엘리먼트 3개 생성
+  faces.forEach(face => {
+    const div = document.createElement('div');
+    div.className = `card-face ${face.cls}`;
+    div.innerHTML = `<div class="${face.cls.replace('-face','')}-text">${face.text}</div>`;
+    slider.appendChild(div);
+  });
+
+  // 초기 위치 세팅
+  slider.style.transform = `translateX(-${currentIndex * 33.333}%)`;
+
+  // 4) 네비게이션(점) 생성
+  const nav = document.createElement('div');
+  nav.className = 'navigation';
+  faces.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.className = i === currentIndex ? 'nav-dot active' : 'nav-dot';
+    dot.dataset.idx = i;
+    dot.addEventListener('click', e => {
+      e.stopPropagation();
+      resetAllCards();
+      currentIndex = i;
+      slider.style.transform = `translateX(-${i * 33.333}%)`;
+      nav.querySelectorAll('.nav-dot').forEach((d, di) =>
+        d.classList.toggle('active', di === i)
+      );
+      // TTS: 영어 단어 면만 발음
+      if (i === 0 && 'speechSynthesis' in window) {
+        const utter = new SpeechSynthesisUtterance(faces[i].text);
+        utter.lang = 'en-US';
+        if (englishVoice) utter.voice = englishVoice;
+        speechSynthesis.speak(utter);
+      }
+    });
+    nav.appendChild(dot);
+  });
+
+  // 5) 카드 클릭 시 슬라이드 전환 + TTS
+  card.append(slider, nav);
+  card.addEventListener('click', () => {
+    resetAllCards();
+    currentIndex = (currentIndex + 1) % faces.length;
+    slider.style.transform = `translateX(-${currentIndex * 33.333}%)`;
+    nav.querySelectorAll('.nav-dot').forEach((d, di) =>
+      d.classList.toggle('active', di === currentIndex)
+    );
+    if (currentIndex === 0 && 'speechSynthesis' in window) {
+      const utter = new SpeechSynthesisUtterance(faces[currentIndex].text);
+      utter.lang = 'en-US';
+      if (englishVoice) utter.voice = englishVoice;
+      speechSynthesis.speak(utter);
     }
+  });
+
+  return card;
+}
+
 
     // 언어 탭 클릭 이벤트 바인딩
     document.querySelectorAll('.lang-btn').forEach((btn) => {
