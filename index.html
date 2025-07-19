@@ -179,10 +179,10 @@
       background-color: #415163;
     }
     
-    /* AI 문장 생성 기능 CSS */
+    /* --- AI 문장 생성기용 CSS 추가 --- */
     .generate-btn {
       position: absolute;
-      right: 50px;
+      right: 40px;
       top: 50%;
       transform: translateY(-50%);
       padding: 4px 8px;
@@ -213,39 +213,6 @@
       color: #34495e;
       display: none;
       white-space: pre-wrap;
-      position: relative;
-    }
-    .sentence-controls {
-      display: flex;
-      gap: 10px;
-      margin-top: 10px;
-    }
-    .tts-btn {
-      padding: 2px 6px;
-      font-size: 0.7rem;
-      background-color: #27ae60;
-      color: white;
-      border: none;
-      border-radius: 3px;
-      cursor: pointer;
-    }
-    .tts-btn:hover {
-      background-color: #219a52;
-    }
-    .tts-btn:disabled {
-      background-color: #95a5a6;
-      cursor: not-allowed;
-    }
-    .sentence-text {
-      font-size: 1.1rem;
-      margin-bottom: 10px;
-      line-height: 1.4;
-    }
-    .korean-translation {
-      font-size: 0.9rem;
-      color: #7f8c8d;
-      font-style: normal;
-      margin-top: 5px;
     }
   </style>
 </head>
@@ -258,7 +225,7 @@
     <p id="login-error" style="color: red; visibility: hidden; margin-top: 8px;">비밀번호가 올바르지 않습니다.</p>
   </div>
 
-  <!-- 실제 앱 화면 -->
+  <!-- 실제 앱 화면 (초기 감춤) -->
   <div id="app" style="display: none;">
     <div class="container">
       <header>
@@ -270,8 +237,7 @@
       </div>
       <p class="instructions">
         • 카드 클릭 시 영어 단어면에서 원어민 목소리로 발음이 재생됩니다.<br/>
-        • '문장 만들기' 버튼으로 AI가 유닛 단어를 활용해 매번 다른 예문을 만들어줍니다.<br/>
-        • 생성된 문장은 영어/한국어 음성으로 읽을 수 있습니다.
+        • '문장 만들기' 버튼으로 AI가 유닛 단어를 활용해 예문을 만들어줍니다.
       </p>
       <div id="chapters-list">
         <div class="loading">데이터 로딩 중...</div>
@@ -281,115 +247,61 @@
 
   <script>
     const CORRECT_PASSWORD = '0410';
+
+    document.getElementById('login-btn').addEventListener('click', () => {
+        const pwd = document.getElementById('password-input').value;
+        if (pwd === CORRECT_PASSWORD) {
+          document.getElementById('login-screen').style.display = 'none';
+          document.getElementById('app').style.display = 'block';
+          loadVoices();
+          initializeApp();
+        } else {
+          document.getElementById('login-error').style.visibility = 'visible';
+        }
+      });
+      
+    // 전역 변수
     let defaultFaceIndex = 0;
     let englishVoice = null;
-    let koreanVoice = null;
-    let generator = null; // 온디바이스 AI 생성기
+    let generator = null; // 온디바이스 AI 생성기를 저장할 변수
 
-    // 로그인 처리
-    document.getElementById('login-btn').addEventListener('click', () => {
-      const pwd = document.getElementById('password-input').value;
-      if (pwd === CORRECT_PASSWORD) {
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('app').style.display = 'block';
-        loadVoices();
-        initializeApp();
-      } else {
-        document.getElementById('login-error').style.visibility = 'visible';
-      }
-    });
-
-    // 단어 데이터 (기존과 동일)
+    // 단어 데이터
     const vocabData = [
-      { title: "Unit 1: Special Days", words: [
-        { word: "Valentine's Day", pronunciation: "/ˈvæləntaɪnz deɪ/", meaning: "발렌타인 데이" },
-        { word: "Earth Day", pronunciation: "/ɜːrθ deɪ/", meaning: "지구의 날" },
-        { word: "Mother's Day", pronunciation: "/ˈmʌðərz deɪ/", meaning: "어머니의 날" },
-        { word: "Thanksgiving", pronunciation: "/ˌθæŋksˈɡɪvɪŋ/", meaning: "추수감사절" },
-        { word: "Halloween", pronunciation: "/ˌhæləˈwiːn/", meaning: "할로윈" },
-        { word: "Christmas Day", pronunciation: "/ˈkrɪsməs deɪ/", meaning: "크리스마스" },
-        { word: "favorite", pronunciation: "/ˈfeɪvərɪt/", meaning: "가장 좋아하는" },
-        { word: "day", pronunciation: "/deɪ/", meaning: "날" },
-        { word: "my", pronunciation: "/maɪ/", meaning: "나의" },
-        { word: "his", pronunciation: "/hɪz/", meaning: "그의" },
-        { word: "her", pronunciation: "/hɜːr/", meaning: "그녀의" },
-        { word: "what", pronunciation: "/wɑːt/", meaning: "무엇" },
-        { word: "look", pronunciation: "/lʊk/", meaning: "보다" },
-        { word: "make", pronunciation: "/meɪk/", meaning: "만들다" },
-        { word: "cards", pronunciation: "/kɑːrdz/", meaning: "카드" },
-        { word: "give", pronunciation: "/ɡɪv/", meaning: "주다" },
-        { word: "presents", pronunciation: "/ˈprezənts/", meaning: "선물" },
-        { word: "eat", pronunciation: "/iːt/", meaning: "먹다" },
-        { word: "turkey", pronunciation: "/ˈtɜːrki/", meaning: "칠면조" },
-        { word: "mom", pronunciation: "/mɑːm/", meaning: "엄마" },
-        { word: "I", pronunciation: "/aɪ/", meaning: "나" },
-        { word: "you", pronunciation: "/juː/", meaning: "너" },
-        { word: "he", pronunciation: "/hiː/", meaning: "그" },
-        { word: "she", pronunciation: "/ʃiː/", meaning: "그녀" },
-        { word: "we", pronunciation: "/wiː/", meaning: "우리" },
-        { word: "they", pronunciation: "/ðeɪ/", meaning: "그들" },
-        { word: "love", pronunciation: "/lʌv/", meaning: "사랑하다" },
-        { word: "happy", pronunciation: "/ˈhæpi/", meaning: "행복한" },
-        { word: "special", pronunciation: "/ˈspeʃəl/", meaning: "특별한" },
-        { word: "celebrate", pronunciation: "/ˈseləbreɪt/", meaning: "축하하다" }
-      ]},
-      { title: "Unit 2: Today's Weather", words: [
-        { word: "sunny", pronunciation: "/ˈsʌni/", meaning: "맑은" },
-        { word: "rainy", pronunciation: "/ˈreɪni/", meaning: "비가 내리는" },
-        { word: "cloudy", pronunciation: "/ˈklaʊdi/", meaning: "구름 낀" },
-        { word: "windy", pronunciation: "/ˈwɪndi/", meaning: "바람이 부는" },
-        { word: "snowy", pronunciation: "/ˈsnoʊi/", meaning: "눈이 내리는" },
-        { word: "weather", pronunciation: "/ˈweðər/", meaning: "날씨" },
-        { word: "today", pronunciation: "/təˈdeɪ/", meaning: "오늘" },
-        { word: "hot", pronunciation: "/hɑːt/", meaning: "더운" },
-        { word: "cold", pronunciation: "/koʊld/", meaning: "추운" },
-        { word: "warm", pronunciation: "/wɔːrm/", meaning: "따뜻한" },
-        { word: "cool", pronunciation: "/kuːl/", meaning: "시원한" },
-        { word: "beautiful", pronunciation: "/ˈbjuːtɪfəl/", meaning: "아름다운" },
-        { word: "nice", pronunciation: "/naɪs/", meaning: "좋은" },
-        { word: "terrible", pronunciation: "/ˈterəbəl/", meaning: "끔찍한" },
-        { word: "outside", pronunciation: "/ˌaʊtˈsaɪd/", meaning: "밖에" },
-        { word: "inside", pronunciation: "/ˌɪnˈsaɪd/", meaning: "안에" },
-        { word: "umbrella", pronunciation: "/ʌmˈbrelə/", meaning: "우산" },
-        { word: "jacket", pronunciation: "/ˈdʒækɪt/", meaning: "재킷" },
-        { word: "stay", pronunciation: "/steɪ/", meaning: "머무르다" },
-        { word: "go", pronunciation: "/ɡoʊ/", meaning: "가다" }
-      ]},
-      { title: "Unit 3: Food & Shopping", words: [
-        { word: "apple", pronunciation: "/ˈæpəl/", meaning: "사과" },
-        { word: "banana", pronunciation: "/bəˈnænə/", meaning: "바나나" },
-        { word: "orange", pronunciation: "/ˈɔːrɪndʒ/", meaning: "오렌지" },
-        { word: "bread", pronunciation: "/bred/", meaning: "빵" },
-        { word: "milk", pronunciation: "/mɪlk/", meaning: "우유" },
-        { word: "cheese", pronunciation: "/tʃiːz/", meaning: "치즈" },
-        { word: "chicken", pronunciation: "/ˈtʃɪkɪn/", meaning: "닭고기" },
-        { word: "rice", pronunciation: "/raɪs/", meaning: "쌀" },
-        { word: "water", pronunciation: "/ˈwɔːtər/", meaning: "물" },
-        { word: "juice", pronunciation: "/dʒuːs/", meaning: "주스" },
-        { word: "buy", pronunciation: "/baɪ/", meaning: "사다" },
-        { word: "sell", pronunciation: "/sel/", meaning: "팔다" },
-        { word: "store", pronunciation: "/stɔːr/", meaning: "가게" },
-        { word: "market", pronunciation: "/ˈmɑːrkɪt/", meaning: "시장" },
-        { word: "fresh", pronunciation: "/freʃ/", meaning: "신선한" },
-        { word: "delicious", pronunciation: "/dɪˈlɪʃəs/", meaning: "맛있는" },
-        { word: "healthy", pronunciation: "/ˈhelθi/", meaning: "건강한" },
-        { word: "expensive", pronunciation: "/ɪkˈspensɪv/", meaning: "비싼" },
-        { word: "cheap", pronunciation: "/tʃiːp/", meaning: "싼" },
-        { word: "hungry", pronunciation: "/ˈhʌŋɡri/", meaning: "배고픈" }
-      ]}
+        { title: "Unit 1: Special Days", words: [
+            { word: "Valentine's Day", pronunciation: "/ˈvæləntaɪnz deɪ/", meaning: "발렌타인 데이" }, { word: "Earth Day", pronunciation: "/ɜːrθ deɪ/", meaning: "지구의 날" }, { word: "Mother's Day", pronunciation: "/ˈmʌðərz deɪ/", meaning: "어머니의 날" }, { word: "Thanksgiving", pronunciation: "/ˌθæŋksˈɡɪvɪŋ/", meaning: "추수감사절" }, { word: "Halloween", pronunciation: "/ˌhæləˈwiːn/", meaning: "할로윈" }, { word: "Christmas Day", pronunciation: "/ˈkrɪsməs deɪ/", meaning: "크리스마스" }, { word: "favorite", pronunciation: "/ˈfeɪvərɪt/", meaning: "가장 좋아하는" }, { word: "day", pronunciation: "/deɪ/", meaning: "날" }, { word: "my", pronunciation: "/maɪ/", meaning: "나의" }, { word: "his", pronunciation: "/hɪz/", meaning: "그의" }, { word: "her", pronunciation: "/hɜːr/", meaning: "그녀의" }, { word: "what", pronunciation: "/wɑːt/", meaning: "무엇" }, { word: "look", pronunciation: "/lʊk/", meaning: "보다" }, { word: "number", pronunciation: "/ˈnʌmbər/", meaning: "번호" }, { word: "decode", pronunciation: "/diːˈkoʊd/", meaning: "해독하다" }, { word: "write", pronunciation: "/raɪt/", meaning: "쓰다" }, { word: "read", pronunciation: "/riːd/", meaning: "읽다" }, { word: "match", pronunciation: "/mætʃ/", meaning: "짝짓다" }, { word: "circle", pronunciation: "/ˈsɜːrkl/", meaning: "동그라미 치다" }, { word: "make", pronunciation: "/meɪk/", meaning: "만들다" }, { word: "cards", pronunciation: "/kɑːrdz/", meaning: "카드" }, { word: "plant", pronunciation: "/plænt/", meaning: "심다" }, { word: "trees", pronunciation: "/triːz/", meaning: "나무" }, { word: "wear", pronunciation: "/wer/", meaning: "입다" }, { word: "a", pronunciation: "/ə/, /eɪ/", meaning: "하나의" }, { word: "costume", pronunciation: "/ˈkɑːstuːm/", meaning: "의상" }, { word: "give", pronunciation: "/ɡɪv/", meaning: "주다" }, { word: "presents", pronunciation: "/ˈprezənts/", meaning: "선물" }, { word: "eat", pronunciation: "/iːt/", meaning: "먹다" }, { word: "turkey", pronunciation: "/ˈtɜːrki/", meaning: "칠면조" }, { word: "hug", pronunciation: "/hʌɡ/", meaning: "안다" }, { word: "mom", pronunciation: "/mɑːm/", meaning: "엄마" }, { word: "open", pronunciation: "/ˈoʊpən/", meaning: "열다" }, { word: "connect", pronunciation: "/kəˈnekt/", meaning: "연결하다" }, { word: "do", pronunciation: "/duː/", meaning: "하다" }, { word: "you", pronunciation: "/juː/", meaning: "너" }, { word: "on", pronunciation: "/ɑːn/", meaning: "~에" }, { word: "does", pronunciation: "/dʌz/", meaning: "~한다" }, { word: "he", pronunciation: "/hiː/", meaning: "그" }, { word: "I", pronunciation: "/aɪ/", meaning: "나" }, { word: "and", pronunciation: "/ænd/", meaning: "그리고" }, { word: "story", pronunciation: "/ˈstɔːri/", meaning: "이야기" }, { word: "looking at", pronunciation: "/ˈlʊkɪŋ æt/", meaning: "~을 보고 있는" }, { word: "calendar", pronunciation: "/ˈkælɪndər/", meaning: "달력" }, { word: "what's", pronunciation: "/wɑːts/", meaning: "무엇이 ~이니" }, { word: "why", pronunciation: "/waɪ/", meaning: "왜" }, { word: "is", pronunciation: "/ɪz/", meaning: "~이다" }, { word: "there", pronunciation: "/ðer/", meaning: "거기에" }, { word: "special", pronunciation: "/ˈspeʃəl/", meaning: "특별한" }, { word: "reason", pronunciation: "/ˈriːzən/", meaning: "이유" }, { word: "lots of", pronunciation: "/lɑːts əv/", meaning: "많은" }, { word: "chocolate", pronunciation: "/ˈtʃɑːklət/", meaning: "초콜릿" }, { word: "then", pronunciation: "/ðen/", meaning: "그때" }, { word: "I'm", pronunciation: "/aɪm/", meaning: "나는 ~이다" }, { word: "very", pronunciation: "/ˈveri/", meaning: "매우" }, { word: "popular", pronunciation: "/ˈpɑːpjələr/", meaning: "인기 있는" }, { word: "coming soon", pronunciation: "/ˈkʌmɪŋ suːn/", meaning: "곧 다가오는" }, { word: "excited", pronunciation: "/ɪkˈsaɪtɪd/", meaning: "신이 난, 흥분한" }, { word: "so", pronunciation: "/soʊ/", meaning: "매우" }, { word: "am", pronunciation: "/æm/", meaning: "~이다" }, { word: "TRUE", pronunciation: "/truː/", meaning: "참" }, { word: "FALSE", pronunciation: "/fɔːls/", meaning: "거짓" }, { word: "wrap up", pronunciation: "/ræp ʌp/", meaning: "마무리하다" }, { word: "follow", pronunciation: "/ˈfɑːloʊ/", meaning: "따르다" }, { word: "check", pronunciation: "/tʃek/", meaning: "확인하다" }
+        ]},
+        { title: "Unit 2: Today's Weather", words: [
+            { word: "snowy", pronunciation: "/ˈsnoʊi/", meaning: "눈이 내리는" }, { word: "rainy", pronunciation: "/ˈreɪni/", meaning: "비가 내리는" }, { word: "sunny", pronunciation: "/ˈsʌni/", meaning: "맑은, 해가 비치는" }, { word: "cloudy", pronunciation: "/ˈklaʊdi/", meaning: "구름 낀" }, { word: "foggy", pronunciation: "/ˈfɑːɡi/", meaning: "안개 낀" }, { word: "windy", pronunciation: "/ˈwɪndi/", meaning: "바람이 부는" }, { word: "weather", pronunciation: "/ˈweðər/", meaning: "날씨" }, { word: "today", pronunciation: "/təˈdeɪ/", meaning: "오늘" }, { word: "how", pronunciation: "/haʊ/", meaning: "어떻게" }, { word: "how's", pronunciation: "/haʊz/", meaning: "어떻게 ~이니" }, { word: "it's", pronunciation: "/ɪts/", meaning: "그것은 ~이다" }, { word: "have", pronunciation: "/hæv/", meaning: "가지다" }, { word: "a", pronunciation: "/ə/, /eɪ/", meaning: "하나의" }, { word: "unscramble", pronunciation: "/ʌnˈskræmbəl/", meaning: "순서 바로잡기" }, { word: "trace", pronunciation: "/treɪs/", meaning: "본따서 쓰다" }, { word: "birthday", pronunciation: "/ˈbɜːrθdeɪ/", meaning: "생일" }, { word: "date", pronunciation: "/deɪt/", meaning: "날짜" }, { word: "when", pronunciation: "/wen/", meaning: "언제" }, { word: "your", pronunciation: "/jɔːr/", meaning: "너의" }, { word: "in", pronunciation: "/ɪn/", meaning: "~안에" }, { word: "Sydney", pronunciation: "/ˈsɪdni/", meaning: "시드니" }, { word: "mom", pronunciation: "/mɑːm/", meaning: "엄마" }, { word: "what's", pronunciation: "/wɑːts/", meaning: "무엇이 ~이니" }, { word: "June", pronunciation: "/dʒuːn/", meaning: "6월" }, { word: "September", pronunciation: "/sɛpˈtɛmbər/", meaning: "9월" }, { word: "April", pronunciation: "/ˈeɪprəl/", meaning: "4월" }, { word: "TV", pronunciation: "/ˌtiː ˈviː/", meaning: "텔레비전" }, { word: "says", pronunciation: "/sez/", meaning: "말하다" }, { word: "uh-oh", pronunciation: "/ʌ oʊ/", meaning: "어머나" }, { word: "really", pronunciation: "/ˈriːəli/", meaning: "정말로" }, { word: "hard", pronunciation: "/hɑːrd/", meaning: "세게" }, { word: "where", pronunciation: "/wer/", meaning: "어디에" }, { word: "going", pronunciation: "/ˈɡoʊɪŋ/", meaning: "가고 있는" }, { word: "to", pronunciation: "/tuː/", meaning: "~로" }, { word: "gift shop", pronunciation: "/ɡɪft ʃɑːp/", meaning: "선물 가게" }, { word: "buy", pronunciation: "/baɪ/", meaning: "사다" }, { word: "mug", pronunciation: "/mʌɡ/", meaning: "머그컵" }, { word: "for", pronunciation: "/fɔːr/", meaning: "~를 위해" }, { word: "oh no", pronunciation: "/oʊ noʊ/", meaning: "이런" }, { word: "umbrella", pronunciation: "/ʌmˈbrelə/", meaning: "우산" }, { word: "already", pronunciation: "/ɔːlˈredi/", meaning: "이미" }, { word: "gave", pronunciation: "/ɡeɪv/", meaning: "주었다" }, { word: "present", pronunciation: "/ˈprezənt/", meaning: "선물" }, { word: "find", pronunciation: "/faɪnd/", meaning: "찾다" }, { word: "January", pronunciation: "/ˈdʒænjueri/", meaning: "1월" }, { word: "February", pronunciation: "/ˈfebrueri/", meaning: "2월" }, { word: "March", pronunciation: "/mɑːrtʃ/", meaning: "3월" }, { word: "May", pronunciation: "/meɪ/", meaning: "5월" }, { word: "July", pronunciation: "/dʒuˈlaɪ/", meaning: "7월" }, { word: "August", pronunciation: "/ˈɔːɡəst/", meaning: "8월" }, { word: "October", pronunciation: "/ɑːkˈtoʊbər/", meaning: "10월" }, { word: "November", pronunciation: "/noʊˈvembər/", meaning: "11월" }, { word: "December", pronunciation: "/dɪˈsembər/", meaning: "12월" }, { word: "Seoul", pronunciation: "/soʊl/", meaning: "서울" }, { word: "New York", pronunciation: "/nuː jɔːrk/", meaning: "뉴욕" }, { word: "Paris", pronunciation: "/ˈpærɪs/", meaning: "파리" }
+        ]},
+        { title: "Unit 3: Food & Shopping", words: [
+            { word: "lemons", pronunciation: "/ˈlemənz/", meaning: "레몬" }, { word: "mushrooms", pronunciation: "/ˈmʌʃruːmz/", meaning: "버섯" }, { word: "watermelons", pronunciation: "/ˈwɔːtərmelənz/", meaning: "수박" }, { word: "cucumbers", pronunciation: "/ˈkjuːkʌmbərz/", meaning: "오이" }, { word: "grapes", pronunciation: "/ɡreɪps/", meaning: "포도" }, { word: "pumpkins", pronunciation: "/ˈpʌmpkɪnz/", meaning: "호박" }, { word: "at", pronunciation: "/æt/", meaning: "~에서" }, { word: "market", pronunciation: "/ˈmɑːrkɪt/", meaning: "시장" }, { word: "shopping list", pronunciation: "/ˈʃɑːpɪŋ lɪst/", meaning: "쇼핑 목록" }, { word: "fruit", pronunciation: "/fruːt/", meaning: "과일" }, { word: "vegetables", pronunciation: "/ˈvedʒtəbəlz/", meaning: "채소" }, { word: "has", pronunciation: "/hæz/", meaning: "가지고 있다" }, { word: "some", pronunciation: "/sʌm/", meaning: "약간의" }, { word: "doesn't", pronunciation: "/ˈdʌzənt/", meaning: "~하지 않는다" }, { word: "any", pronunciation: "/ˈeni/", meaning: "어떤 것도" }, { word: "bacon", pronunciation: "/ˈbeɪkən/", meaning: "베이컨" }, { word: "butter", pronunciation: "/ˈbʌtər/", meaning: "버터" }, { word: "cheese", pronunciation: "/tʃiːz/", meaning: "치즈" }, { word: "ham", pronunciation: "/hæm/", meaning: "햄" }, { word: "sausages", pronunciation: "/ˈsɔːsɪdʒɪz/", meaning: "소시지" }, { word: "yogurt", pronunciation: "/ˈjoʊɡərt/", meaning: "요구르트" }, { word: "do", pronunciation: "/duː/", meaning: "하다" }, { word: "does", pronunciation: "/dʌz/", meaning: "~한다" }, { word: "yes", pronunciation: "/jes/", meaning: "예" }, { word: "no", pronunciation: "/noʊ/", meaning: "아니오" }, { word: "farmers' market", pronunciation: "/ˈfɑːrmərz ˈmɑːrkɪt/", meaning: "농부 시장" }, { word: "aunt", pronunciation: "/ænt/", meaning: "이모, 고모" }, { word: "farm", pronunciation: "/fɑːrm/", meaning: "농장" }, { word: "will", pronunciation: "/wɪl/", meaning: "~할 것이다" }, { word: "go", pronunciation: "/ɡoʊ/", meaning: "가다" }, { word: "can", pronunciation: "/kæn/", meaning: "~할 수 있다" }, { word: "buy", pronunciation: "/baɪ/", meaning: "사다" }, { word: "pies", pronunciation: "/paɪz/", meaning: "파이" }, { word: "let's", pronunciation: "/lets/", meaning: "~하자" }, { word: "she", pronunciation: "/ʃiː/", meaning: "그녀" }, { word: "cool", pronunciation: "/kuːl/", meaning: "멋진" }, { word: "are", pronunciation: "/ɑːr/", meaning: "~이다" }, { word: "make", pronunciation: "/meɪk/", meaning: "만들다" }, { word: "sell", pronunciation: "/sel/", meaning: "팔다" }, { word: "next to", pronunciation: "/nekst tuː/", meaning: "~옆에" }, { word: "find", pronunciation: "/faɪnd/", meaning: "찾다" }, { word: "color", pronunciation: "/ˈkʌlər/", meaning: "색칠하다" }
+        ]},
+        { title: "Unit 4: Jobs & Occupations", words: [
+            { word: "jobs", pronunciation: "/dʒɑːbz/", meaning: "직업" }, { word: "architect", pronunciation: "/ˈɑːrkɪtekt/", meaning: "건축가" }, { word: "pilot", pronunciation: "/ˈpaɪlət/", meaning: "조종사" }, { word: "photographer", pronunciation: "/fəˈtɑːɡrəfər/", meaning: "사진작가" }, { word: "postal worker", pronunciation: "/ˈpoʊstl ˈwɜːrkər/", meaning: "우체국 직원" }, { word: "mechanic", pronunciation: "/məˈkænɪk/", meaning: "정비사" }, { word: "dentist", pronunciation: "/ˈdentɪst/", meaning: "치과 의사" }, { word: "what", pronunciation: "/wɑːt/", meaning: "무엇" }, { word: "they", pronunciation: "/ðeɪ/", meaning: "그들" }, { word: "are", pronunciation: "/ɑːr/", meaning: "~이다" }, { word: "look", pronunciation: "/lʊk/", meaning: "보다" }, { word: "match", pronunciation: "/mætʃ/", meaning: "짝짓다" }, { word: "find", pronunciation: "/faɪnd/", meaning: "찾다" }, { word: "write", pronunciation: "/raɪt/", meaning: "쓰다" }, { word: "Mr.", pronunciation: "/ˈmɪstər/", meaning: "~씨 (남성)" }, { word: "cross out", pronunciation: "/krɔːs aʊt/", meaning: "취소선 긋다" }, { word: "take pictures", pronunciation: "/teɪk ˈpɪktʃərz/", meaning: "사진 찍다" }, { word: "repair cars", pronunciation: "/rɪˈper kɑːrz/", meaning: "차를 수리하다" }, { word: "deliver letters", pronunciation: "/dɪˈlɪvər ˈletərz/", meaning: "편지를 배달하다" }, { word: "fly planes", pronunciation: "/flaɪ pleɪnz/", meaning: "비행기를 조종하다" }, { word: "design buildings", pronunciation: "/dɪˈzaɪn ˈbɪldɪŋz/", meaning: "건물을 설계하다" }, { word: "take care of teeth", pronunciation: "/teɪk ker əv tiːθ/", meaning: "치아를 돌보다" }, { word: "pilots", pronunciation: "/ˈpaɪləts/", meaning: "조종사들" }, { word: "dentists", pronunciation: "/ˈdentɪsts/", meaning: "치과 의사들" }, { word: "architects", pronunciation: "/ˈɑːrkɪtekts/", meaning: "건축가들" }, { word: "mechanics", pronunciation: "/məˈkænɪks/", meaning: "정비사들" }, { word: "postal workers", pronunciation: "/ˈpoʊstl ˈwɜːrkərz/", meaning: "우체국 직원들" }, { word: "photographers", pronunciation: "/fəˈtɑːɡrəfərz/", meaning: "사진작가들" }, { word: "choose", pronunciation: "/tʃuːz/", meaning: "선택하다" }, { word: "welcome", pronunciation: "/ˈwelkəm/", meaning: "환영하다" }, { word: "house", pronunciation: "/haʊs/", meaning: "집" }, { word: "family", pronunciation: "/ˈfæməli/", meaning: "가족" }, { word: "who", pronunciation: "/huː/", meaning: "누구" }, { word: "uncle", pronunciation: "/ˈʌŋkəl/", meaning: "삼촌" }, { word: "why", pronunciation: "/waɪ/", meaning: "왜" }, { word: "think", pronunciation: "/θɪŋk/", meaning: "생각하다" }, { word: "taking", pronunciation: "/ˈteɪkɪŋ/", meaning: "찍고 있는" }, { word: "pictures", pronunciation: "/ˈpɪktʃərz/", meaning: "사진" }, { word: "of", pronunciation: "/əv/, /ʌv/", meaning: "~의" }, { word: "us", pronunciation: "/ʌs/", meaning: "우리" }, { word: "stop", pronunciation: "/stɑːp/", meaning: "멈추다" }, { word: "classmate", pronunciation: "/ˈklæsmeɪt/", meaning: "반 친구" }, { word: "Liz", pronunciation: "/lɪz/", meaning: "리즈 (이름)" }
+        ]},
+        { title: "Unit 5: People & Appearance", words: [
+            { word: "people", pronunciation: "/ˈpiːpəl/", meaning: "사람들" }, { word: "appearance", pronunciation: "/əˈpɪrəns/", meaning: "외모" }, { word: "young", pronunciation: "/jʌŋ/", meaning: "젊은" }, { word: "old", pronunciation: "/oʊld/", meaning: "늙은" }, { word: "handsome", pronunciation: "/ˈhænsəm/", meaning: "잘생긴" }, { word: "short", pronunciation: "/ʃɔːrt/", meaning: "키가 작은" }, { word: "pretty", pronunciation: "/ˈprɪti/", meaning: "예쁜" }, { word: "tall", pronunciation: "/tɔːl/", meaning: "키가 큰" }, { word: "unscramble", pronunciation: "/ʌnˈskræmbəl/", meaning: "순서 바로잡기" }, { word: "what", pronunciation: "/wɑːt/", meaning: "무엇" }, { word: "does", pronunciation: "/dʌz/", meaning: "~한다" }, { word: "your", pronunciation: "/jɔːr/", meaning: "너의" }, { word: "dad", pronunciation: "/dæd/", meaning: "아빠" }, { word: "mom", pronunciation: "/mɑːm/", meaning: "엄마" }, { word: "uncle", pronunciation: "/ˈʌŋkəl/", meaning: "삼촌" }, { word: "do", pronunciation: "/duː/", meaning: "하다" }, { word: "repairs", pronunciation: "/rɪˈperz/", meaning: "수리하다" }, { word: "cars", pronunciation: "/kɑːrz/", meaning: "자동차" }, { word: "designs", pronunciation: "/dɪˈzaɪnz/", meaning: "설계하다" }, { word: "buildings", pronunciation: "/ˈbɪldɪŋz/", meaning: "건물" }, { word: "takes", pronunciation: "/teɪks/", meaning: "찍다" }, { word: "pictures", pronunciation: "/ˈpɪktʃərz/", meaning: "사진" }, { word: "long hair", pronunciation: "/lɔːŋ her/", meaning: "긴 머리" }, { word: "straight hair", pronunciation: "/streɪt her/", meaning: "직모, 생머리" }, { word: "curly hair", pronunciation: "/ˈkɜːrli her/", meaning: "곱슬머리" }, { word: "big eyes", pronunciation: "/bɪɡ aɪz/", meaning: "큰 눈" }, { word: "short hair", pronunciation: "/ʃɔːrt her/", meaning: "짧은 머리" }, { word: "freckles", pronunciation: "/ˈfrekəlz/", meaning: "주근깨" }, { word: "connect", pronunciation: "/kəˈnekt/", meaning: "연결하다" }, { word: "he", pronunciation: "/hiː/", meaning: "그" }, { word: "has", pronunciation: "/hæz/", meaning: "가지고 있다" }, { word: "a", pronunciation: "/ə/, /eɪ/", meaning: "하나의" }, { word: "round face", pronunciation: "/raʊnd feɪs/", meaning: "둥근 얼굴" }, { word: "she", pronunciation: "/ʃiː/", meaning: "그녀" }, { word: "beard", pronunciation: "/bɪrd/", meaning: "수염" }, { word: "big ears", pronunciation: "/bɪɡ ɪrz/", meaning: "큰 귀" }, { word: "look like", pronunciation: "/lʊk laɪk/", meaning: "~처럼 보이다" }, { word: "and", pronunciation: "/ænd/", meaning: "그리고" }, { word: "brother", pronunciation: "/ˈbrʌðər/", meaning: "남동생, 형" }
+        ]},
+        { title: "Unit 6: Lost & Found", words: [
+            { word: "lost", pronunciation: "/lɔːst/", meaning: "잃어버린" }, { word: "found", pronunciation: "/faʊnd/", meaning: "발견된" }, { word: "lunchbox", pronunciation: "/ˈlʌntʃbɑːks/", meaning: "도시락" }, { word: "wallet", pronunciation: "/ˈwɑːlɪt/", meaning: "지갑" }, { word: "cellphone", pronunciation: "/ˈselfəʊn/", meaning: "휴대전화" }, { word: "watch", pronunciation: "/wɑːtʃ/", meaning: "시계" }, { word: "sunglasses", pronunciation: "/ˈsʌnɡlæsɪz/", meaning: "선글라스" }, { word: "backpack", pronunciation: "/ˈbækpæk/", meaning: "배낭" }, { word: "look", pronunciation: "/lʊk/", meaning: "보다" }, { word: "number", pronunciation: "/ˈnʌmbər/", meaning: "번호" }, { word: "write", pronunciation: "/raɪt/", meaning: "쓰다" }, { word: "whose", pronunciation: "/huːz/", meaning: "누구의" }, { word: "is", pronunciation: "/ɪz/", meaning: "~이다" }, { word: "it", pronunciation: "/ɪt/", meaning: "그것" }, { word: "Tina's", pronunciation: "/ˈtiːnəz/", meaning: "티나의" }, { word: "Tom's", pronunciation: "/tɑːmz/", meaning: "톰의" }, { word: "Gina's", pronunciation: "/ˈdʒiːnəz/", meaning: "지나의" }, { word: "read", pronunciation: "/riːd/", meaning: "읽다" }, { word: "match", pronunciation: "/mætʃ/", meaning: "짝짓다" }, { word: "Ella's", pronunciation: "/ˈeləz/", meaning: "엘라의" }, { word: "jeans", pronunciation: "/dʒiːnz/", meaning: "청바지" }, { word: "jacket", pronunciation: "/ˈdʒækɪt/", meaning: "재킷" }, { word: "T-shirt", pronunciation: "/ˈtiːʃɜːrt/", meaning: "티셔츠" }, { word: "skirt", pronunciation: "/skɜːrt/", meaning: "치마" }, { word: "sneakers", pronunciation: "/ˈsniːkərz/", meaning: "운동화" }, { word: "socks", pronunciation: "/sɑːks/", meaning: "양말" }, { word: "connect", pronunciation: "/kəˈnekt/", meaning: "연결하다" }, { word: "are", pronunciation: "/ɑːr/", meaning: "~이다" }, { word: "these", pronunciation: "/ðiːz/", meaning: "이것들" }, { word: "yes", pronunciation: "/jes/", meaning: "예" }, { word: "they", pronunciation: "/ðeɪ/", meaning: "그것들" }, { word: "no", pronunciation: "/noʊ/", meaning: "아니오" }, { word: "this", pronunciation: "/ðɪs/", meaning: "이것" }, { word: "isn't", pronunciation: "/ˈɪzənt/", meaning: "~이 아니다" }, { word: "aren't", pronunciation: "/ɑːrnt/", meaning: "~이 아니다" }, { word: "choose", pronunciation: "/tʃuːz/", meaning: "선택하다" }, { word: "someone", pronunciation: "/ˈsʌmwʌn/", meaning: "누군가" }, { word: "their", pronunciation: "/ðer/", meaning: "그들의" }, { word: "where", pronunciation: "/wer/", meaning: "어디에" }, { word: "my", pronunciation: "/maɪ/", meaning: "나의" }, { word: "one", pronunciation: "/wʌn/", meaning: "하나" }, { word: "that's", pronunciation: "/ðæts/", meaning: "그것은 ~이다" }, { word: "earring", pronunciation: "/ˈɪrɪŋ/", meaning: "귀걸이" }, { word: "glasses", pronunciation: "/ˈɡlæsɪz/", meaning: "안경" }, { word: "shorts", pronunciation: "/ʃɔːrts/", meaning: "반바지" }, { word: "key", pronunciation: "/kiː/", meaning: "열쇠" }, { word: "Bob's", pronunciation: "/bɑːbz/", meaning: "밥의" }, { word: "what", pronunciation: "/wɑːt/", meaning: "무엇" }, { word: "wearing", pronunciation: "/ˈwerɪŋ/", meaning: "입고 있는" }, { word: "I'm", pronunciation: "/aɪm/", meaning: "나는 ~이다" }, { word: "she's", pronunciation: "/ʃiːz/", meaning: "그녀는 ~이다" }, { word: "Tommy's", pronunciation: "/ˈtɑːmiz/", meaning: "토미의" }, { word: "Laura's", pronunciation: "/ˈlɔːrəz/", meaning: "로라의" }
+        ]},
+        { title: "Unit 7: School Life", words: [
+            { word: "at", pronunciation: "/æt/", meaning: "~에서" }, { word: "school", pronunciation: "/skuːl/", meaning: "학교" }, { word: "subjects", pronunciation: "/ˈsʌbdʒekts/", meaning: "과목" }, { word: "math", pronunciation: "/mæθ/", meaning: "수학" }, { word: "P.E.", pronunciation: "/ˌpiː ˈiː/", meaning: "체육" }, { word: "art", pronunciation: "/ɑːrt/", meaning: "미술" }, { word: "social studies", pronunciation: "/ˈsoʊʃəl ˈstʌdiz/", meaning: "사회" }, { word: "music", pronunciation: "/ˈmjuːzɪk/", meaning: "음악" }, { word: "science", pronunciation: "/ˈsaɪəns/", meaning: "과학" }, { word: "geography", pronunciation: "/dʒiˈɑːɡrəfi/", meaning: "지리" }, { word: "look", pronunciation: "/lʊk/", meaning: "보다" }, { word: "circle", pronunciation: "/ˈsɜːrkl/", meaning: "동그라미 치다" }, { word: "write", pronunciation: "/raɪt/", meaning: "쓰다" }, { word: "find", pronunciation: "/faɪnd/", meaning: "찾다" }, { word: "read", pronunciation: "/riːd/", meaning: "읽다" }, { word: "match", pronunciation: "/mætʃ/", meaning: "짝짓다" }, { word: "when", pronunciation: "/wen/", meaning: "언제" }, { word: "do", pronunciation: "/duː/", meaning: "하다" }, { word: "you", pronunciation: "/juː/", meaning: "너" }, { word: "have", pronunciation: "/hæv/", meaning: "가지다" }, { word: "I", pronunciation: "/aɪ/", meaning: "나" }, { word: "on", pronunciation: "/ɑːn/", meaning: "~에" }, { word: "Tuesday", pronunciation: "/ˈtuːzdeɪ/", meaning: "화요일" }, { word: "Friday", pronunciation: "/ˈfraɪdeɪ/", meaning: "금요일" }, { word: "Monday", pronunciation: "/ˈmʌndeɪ/", meaning: "월요일" }, { word: "does", pronunciation: "/dʌz/", meaning: "~한다" }, { word: "he", pronunciation: "/hiː/", meaning: "그" }, { word: "she", pronunciation: "/ʃiː/", meaning: "그녀" }, { word: "class", pronunciation: "/klæs/", meaning: "수업" }, { word: "activities", pronunciation: "/ækˈtɪvətiz/", meaning: "활동" }, { word: "cross out", pronunciation: "/krɔːs aʊt/", meaning: "취소선 긋다" }, { word: "do experiments", pronunciation: "/duː ɪkˈsperɪmənts/", meaning: "실험하다" }, { word: "read maps", pronunciation: "/riːd mæps/", meaning: "지도 읽기" }, { word: "sing songs", pronunciation: "/sɪŋ sɔːŋz/", meaning: "노래 부르기" }, { word: "play sports", pronunciation: "/pleɪ spɔːrts/", meaning: "스포츠 하기" }, { word: "paint pictures", pronunciation: "/peɪnt ˈpɪktʃərz/", meaning: "그림 그리기" }, { word: "solve math problems", pronunciation: "/sɑːlv mæθ ˈprɑːbləmz/", meaning: "수학 문제 풀기" }, { word: "she does", pronunciation: "/ʃiː dʌz/", meaning: "그녀는 ~한다" }, { word: "he paints", pronunciation: "/hiː peɪnts/", meaning: "그는 그린다" }, { word: "he plays", pronunciation: "/hiː pleɪz/", meaning: "그는 한다" }, { word: "number", pronunciation: "/ˈnʌmbər/", meaning: "번호" }, { word: "I sing", pronunciation: "/aɪ sɪŋ/", meaning: "나는 노래한다" }, { word: "I solve", pronunciation: "/aɪ sɑːlv/", meaning: "나는 푼다" }, { word: "I do", pronunciation: "/aɪ duː/", meaning: "나는 한다" }, { word: "what does", pronunciation: "/wɑːt dʌz/", meaning: "무엇을 ~하니" }, { word: "in", pronunciation: "/ɪn/", meaning: "~안에서" }, { word: "story", pronunciation: "/ˈstɔːri/", meaning: "이야기" }, { word: "this is", pronunciation: "/ðɪs ɪz/", meaning: "이것은 ~이다" }, { word: "Willy", pronunciation: "/ˈwɪli/", meaning: "윌리 (이름)" }, { word: "our", pronunciation: "/aʊər/", meaning: "우리의" }, { word: "new", pronunciation: "/nuː/", meaning: "새로운" }, { word: "classmate", pronunciation: "/ˈklæsmeɪt/", meaning: "반 친구" }, { word: "we", pronunciation: "/wiː/", meaning: "우리" }, { word: "hi", pronunciation: "/haɪ/", meaning: "안녕" }, { word: "I'm", pronunciation: "/aɪm/", meaning: "나는 ~이다" }, { word: "Lien", pronunciation: "/liːn/", meaning: "리엔 (이름)" }, { word: "nice", pronunciation: "/naɪs/", meaning: "좋은" }, { word: "to", pronunciation: "/tuː/", meaning: "~에게" }, { word: "meet", pronunciation: "/miːt/", meaning: "만나다" }, { word: "what do", pronunciation: "/wɑːt duː/", meaning: "무엇을 ~하니" }, { word: "think", pronunciation: "/θɪŋk/", meaning: "생각하다" }, { word: "let me", pronunciation: "/let miː/", meaning: "내가 ~하게 해줘" }, { word: "show", pronunciation: "/ʃoʊ/", meaning: "보여주다" }, { word: "follow", pronunciation: "/ˈfɑːloʊ/", meaning: "따라가다" }, { word: "me", pronunciation: "/miː/", meaning: "나를" }, { word: "Wednesday", pronunciation: "/ˈwenzdeɪ/", meaning: "수요일" }, { word: "Thursday", pronunciation: "/ˈθɜːrzdeɪ/", meaning: "목요일" }, { word: "day", pronunciation: "/deɪ/", meaning: "요일" }, { word: "subject", pronunciation: "/ˈsʌbdʒekt/", meaning: "과목" }, { word: "activity", pronunciation: "/ækˈtɪvəti/", meaning: "활동" }
+        ]},
+        { title: "Unit 8: Places & Transportation", words: [
+            { word: "places", pronunciation: "/pleɪsɪz/", meaning: "장소" }, { word: "in", pronunciation: "/ɪn/", meaning: "~안에" }, { word: "town", pronunciation: "/taʊn/", meaning: "마을" }, { word: "bakery", pronunciation: "/ˈbeɪkəri/", meaning: "빵집" }, { word: "bank", pronunciation: "/bæŋk/", meaning: "은행" }, { word: "fire station", pronunciation: "/ˈfaɪər ˈsteɪʃən/", meaning: "소방서" }, { word: "hospital", pronunciation: "/ˈhɑːspɪtl/", meaning: "병원" }, { word: "post office", pronunciation: "/poʊst ˈɔːfɪs/", meaning: "우체국" }, { word: "pet shop", pronunciation: "/pet ʃɑːp/", meaning: "애완동물 가게" }, { word: "look", pronunciation: "/lʊk/", meaning: "보다" }, { word: "match", pronunciation: "/mætʃ/", meaning: "짝짓다" }, { word: "write", pronunciation: "/raɪt/", meaning: "쓰다" }, { word: "school", pronunciation: "/skuːl/", meaning: "학교" }, { word: "park", pronunciation: "/pɑːrk/", meaning: "공원" }, { word: "where's", pronunciation: "/werz/", meaning: "어디에 있니" }, { word: "it's", pronunciation: "/ɪts/", meaning: "그것은 ~이다" }, { word: "across from", pronunciation: "/əˈkrɔːs frəm/", meaning: "~의 맞은편에" }, { word: "she", pronunciation: "/ʃiː/", meaning: "그녀" }, { word: "goes", pronunciation: "/ɡoʊz/", meaning: "가다" }, { word: "there", pronunciation: "/ðer/", meaning: "거기에" }, { word: "by", pronunciation: "/baɪ/", meaning: "~로" }, { word: "bus", pronunciation: "/bʌs/", meaning: "버스" }, { word: "next to", pronunciation: "/nekst tuː/", meaning: "~의 옆에" }, { word: "he", pronunciation: "/hiː/", meaning: "그" }, { word: "taxi", pronunciation: "/ˈtæksi/", meaning: "택시" }, { word: "between", pronunciation: "/bɪˈtwiːn/", meaning: "~사이에" }, { word: "and", pronunciation: "/ænd/", meaning: "그리고" }, { word: "on foot", pronunciation: "/ɑːn fʊt/", meaning: "도보로" }, { word: "transportation", pronunciation: "/ˌtrænspɔːrˈteɪʃən/", meaning: "교통수단" }, { word: "decode", pronunciation: "/diːˈkoʊd/", meaning: "해독하다" }, { word: "bike", pronunciation: "/baɪk/", meaning: "자전거" }, { word: "car", pronunciation: "/kɑːr/", meaning: "자동차" }, { word: "subway", pronunciation: "/ˈsʌbweɪ/", meaning: "지하철" }, { word: "foot", pronunciation: "/fʊt/", meaning: "도보" }, { word: "connect", pronunciation: "/kəˈnekt/", meaning: "연결하다" }, { word: "where", pronunciation: "/wer/", meaning: "어디에" }, { word: "do", pronunciation: "/duː/", meaning: "하다" }, { word: "you", pronunciation: "/juː/", meaning: "너" }, { word: "go", pronunciation: "/ɡoʊ/", meaning: "가다" }, { word: "I", pronunciation: "/aɪ/", meaning: "나" }, { word: "does", pronunciation: "/dʌz/", meaning: "~한다" }, { word: "story", pronunciation: "/ˈstɔːri/", meaning: "이야기" }, { word: "Bob's Bakery", pronunciation: "/bɑːbz ˈbeɪkəri/", meaning: "밥의 빵집" }, { word: "downtown", pronunciation: "/ˌdaʊnˈtaʊn/", meaning: "시내" }, { word: "we're", pronunciation: "/wɪr/", meaning: "우리는 ~이다" }, { word: "almost", pronunciation: "/ˈɔːlmoʊst/", meaning: "거의" }, { word: "how", pronunciation: "/haʊ/", meaning: "어떻게" }, { word: "can", pronunciation: "/kæn/", meaning: "~할 수 있다" }, { word: "we", pronunciation: "/wiː/", meaning: "우리" }, { word: "where are", pronunciation: "/wer ɑːr/", meaning: "어디에 있니" }, { word: "all", pronunciation: "/ɔːl/", meaning: "모든" }, { word: "muffins", pronunciation: "/ˈmʌfɪnz/", meaning: "머핀" }, { word: "they're", pronunciation: "/ðer/", meaning: "그것들은 ~이다" }, { word: "sold out", pronunciation: "/soʊld aʊt/", meaning: "매진된" }, { word: "sorry", pronunciation: "/ˈsɑːri/", meaning: "미안하다" }, { word: "follow the paths", pronunciation: "/ˈfɑːloʊ ðə pæðz/", meaning: "길을 따라가다" }, { word: "review", pronunciation: "/rɪˈvjuː/", meaning: "복습" }, { word: "play sports with us", pronunciation: "/pleɪ spɔːrts wɪð ʌs/", meaning: "우리와 운동하다" }, { word: "special section", pronunciation: "/ˈspeʃəl ˈsekʃən/", meaning: "특별 섹션" }, { word: "join", pronunciation: "/dʒɔɪn/", meaning: "참여하다" }, { word: "international", pronunciation: "/ˌɪntərˈnæʃənl/", meaning: "국제적인" }, { word: "sports class", pronunciation: "/spɔːrts klæs/", meaning: "체육 수업" }, { word: "special", pronunciation: "/ˈspeʃəl/", meaning: "특별한" }, { word: "Tuesdays", pronunciation: "/ˈtuːzdeɪz/", meaning: "화요일마다" }, { word: "Thursdays", pronunciation: "/ˈθɜːrzdeɪz/", meaning: "목요일마다" }, { word: "like", pronunciation: "/laɪk/", meaning: "~와 같은" }, { word: "soccer", pronunciation: "/ˈsɑːkər/", meaning: "축구" }, { word: "rugby", pronunciation: "/ˈrʌɡbi/", meaning: "럭비" }, { word: "really", pronunciation: "/ˈriːəli/", meaning: "정말로" }, { word: "fun", pronunciation: "/fʌn/", meaning: "재미있는" }, { word: "usually", pronunciation: "/ˈjuːʒuəli/", meaning: "보통" }, { word: "class", pronunciation: "/klæs/", meaning: "수업" }, { word: "Benson Field", pronunciation: "/ˈbensən fiːld/", meaning: "벤슨 필드" }, { word: "from", pronunciation: "/frəm/", meaning: "~부터" }, { word: "Wright Elementary School", pronunciation: "/raɪt ˌelɪˈmentəri skuːl/", meaning: "라이트 초등학교" }, { word: "every", pronunciation: "/ˈevri/", meaning: "매" }, { word: "Monday", pronunciation: "/ˈmʌndeɪ/", meaning: "월요일" }, { word: "Thursday", pronunciation: "/ˈθɜːrzdeɪ/", meaning: "목요일" }
+        ]}
     ];
 
-    // 음성 로드
+    // --- 기존 함수들 ---
     function loadVoices() {
       const voices = window.speechSynthesis.getVoices();
-      englishVoice = voices.find(v => v.lang === 'en-US') || voices.find(v => v.lang.startsWith('en')) || null;
-      koreanVoice = voices.find(v => v.lang === 'ko-KR') || voices.find(v => v.lang.startsWith('ko')) || null;
+      englishVoice = voices.find((v) => v.lang === 'en-US') || voices.find((v) => v.lang.startsWith('en')) || null;
     }
     window.speechSynthesis.onvoiceschanged = loadVoices;
 
-    // 카드 리셋
     function resetAllCards() {
-      document.querySelectorAll('.word-card').forEach(card => {
+      document.querySelectorAll('.word-card').forEach((card) => {
         const slider = card.querySelector('.card-slider');
         const nav = card.querySelector('.navigation');
         slider.style.transform = `translateX(-${defaultFaceIndex * 33.333}%)`;
@@ -397,222 +309,161 @@
       });
     }
 
-    // 앱 초기화
-    function initializeApp() {
-      const container = document.getElementById('chapters-list');
-      container.innerHTML = '';
-      
-      vocabData.forEach((chapter, idx) => {
-        const chapDiv = document.createElement('div');
-        chapDiv.className = 'chapter-container';
-
-        const title = document.createElement('div');
-        title.className = 'chapter-title';
-        title.innerHTML = `
-          <span>${chapter.title}</span>
-          <button class="generate-btn">문장 만들기</button>
-          <span class="chapter-toggle">▼</span>
-        `;
-
-        const sentenceDisplay = document.createElement('div');
-        sentenceDisplay.className = 'sentence-display';
-
-        const wordsDiv = document.createElement('div');
-        wordsDiv.className = 'words-container';
-        if (idx === 0) {
-          wordsDiv.classList.add('expanded');
-          title.querySelector('.chapter-toggle').textContent = '▲';
-        }
-
-        chapter.words.forEach(word => wordsDiv.appendChild(createWordCard(word)));
-
-        title.addEventListener('click', e => {
-          if (e.target.classList.contains('generate-btn')) return;
-          wordsDiv.classList.toggle('expanded');
-          title.querySelector('.chapter-toggle').textContent = wordsDiv.classList.contains('expanded') ? '▲' : '▼';
-        });
-
-        title.querySelector('.generate-btn').addEventListener('click', e => {
-          const btn = e.target;
-          generateSentenceWithLocalAI(chapter.words, sentenceDisplay, btn);
-        });
-
-        chapDiv.append(title, sentenceDisplay, wordsDiv);
-        container.append(chapDiv);
-      });
-    }
-
-    // 단어 카드 생성
     function createWordCard(data) {
-      const card = document.createElement('div');
-      card.className = 'word-card';
-      
-      const slider = document.createElement('div');
-      slider.className = 'card-slider';
-      
-      let currentIndex = defaultFaceIndex;
-      const faces = [
-        { cls: 'word-face', text: data.word },
-        { cls: 'pronunciation-face', text: data.pronunciation },
-        { cls: 'meaning-face', text: data.meaning }
-      ];
-
-      faces.forEach(face => {
-        const div = document.createElement('div');
-        div.className = `card-face ${face.cls}`;
-        div.innerHTML = `<div class="${face.cls.replace('-face','')}-text">${face.text}</div>`;
-        slider.appendChild(div);
-      });
-
-      slider.style.transform = `translateX(-${currentIndex * 33.333}%)`;
-
-      const nav = document.createElement('div');
-      nav.className = 'navigation';
-      faces.forEach((_, i) => {
-        const dot = document.createElement('div');
-        dot.className = i === currentIndex ? 'nav-dot active' : 'nav-dot';
-        dot.dataset.idx = i;
-        dot.addEventListener('click', e => {
-          e.stopPropagation();
-          currentIndex = i;
-          slider.style.transform = `translateX(-${i * 33.333}%)`;
-          nav.querySelectorAll('.nav-dot').forEach((d, di) => d.classList.toggle('active', di === i));
-          if (i === 0 && 'speechSynthesis' in window) {
-            const utter = new SpeechSynthesisUtterance(faces[i].text);
+        const card = document.createElement('div');
+        card.className = 'word-card';
+        const slider = document.createElement('div');
+        slider.className = 'card-slider';
+        let currentIndex = defaultFaceIndex;
+        const faces = [
+            { cls: 'word-face', text: data.word },
+            { cls: 'pronunciation-face', text: data.pronunciation },
+            { cls: 'meaning-face', text: data.meaning }
+        ];
+        faces.forEach(face => {
+            const div = document.createElement('div');
+            div.className = `card-face ${face.cls}`;
+            div.innerHTML = `<div class="${face.cls.replace('-face','')}-text">${face.text}</div>`;
+            slider.appendChild(div);
+        });
+        slider.style.transform = `translateX(-${currentIndex * 33.333}%)`;
+        const nav = document.createElement('div');
+        nav.className = 'navigation';
+        faces.forEach((_, i) => {
+            const dot = document.createElement('div');
+            dot.className = i === currentIndex ? 'nav-dot active' : 'nav-dot';
+            dot.dataset.idx = i;
+            dot.addEventListener('click', e => {
+            e.stopPropagation();
+            currentIndex = i;
+            slider.style.transform = `translateX(-${i * 33.333}%)`;
+            nav.querySelectorAll('.nav-dot').forEach((d, di) => d.classList.toggle('active', di === i));
+            if (i === 0 && 'speechSynthesis' in window) {
+                const utter = new SpeechSynthesisUtterance(faces[i].text);
+                if (englishVoice) utter.voice = englishVoice;
+                speechSynthesis.speak(utter);
+            }
+            });
+            nav.appendChild(dot);
+        });
+        card.append(slider, nav);
+        card.addEventListener('click', () => {
+            currentIndex = (currentIndex + 1) % faces.length;
+            slider.style.transform = `translateX(-${currentIndex * 33.333}%)`;
+            nav.querySelectorAll('.nav-dot').forEach((d, di) => d.classList.toggle('active', di === currentIndex));
+            if (currentIndex === 0 && 'speechSynthesis' in window) {
+            const utter = new SpeechSynthesisUtterance(faces[currentIndex].text);
             if (englishVoice) utter.voice = englishVoice;
             speechSynthesis.speak(utter);
-          }
+            }
         });
-        nav.appendChild(dot);
-      });
-
-      card.append(slider, nav);
-      card.addEventListener('click', () => {
-        currentIndex = (currentIndex + 1) % faces.length;
-        slider.style.transform = `translateX(-${currentIndex * 33.333}%)`;
-        nav.querySelectorAll('.nav-dot').forEach((d, di) => d.classList.toggle('active', di === currentIndex));
-        if (currentIndex === 0 && 'speechSynthesis' in window) {
-          const utter = new SpeechSynthesisUtterance(faces[currentIndex].text);
-          if (englishVoice) utter.voice = englishVoice;
-          speechSynthesis.speak(utter);
-        }
-      });
-
-      return card;
+        return card;
     }
 
-    // 온디바이스 AI 문장 생성 (매번 다른 문장)
+    // --- AI 기능이 추가된 새로운 함수 ---
+    function initializeApp() {
+        const container = document.getElementById('chapters-list');
+        container.innerHTML = '';
+        vocabData.forEach((chapter, idx) => {
+            const chapDiv = document.createElement('div');
+            chapDiv.className = 'chapter-container';
+
+            const title = document.createElement('div');
+            title.className = 'chapter-title';
+            // 버튼 추가
+            title.innerHTML = `
+            <span>${chapter.title}</span>
+            <div>
+                <button class="generate-btn">문장 만들기</button>
+                <span class="chapter-toggle">▼</span>
+            </div>
+            `;
+
+            // 문장 표시될 div 추가
+            const sentenceDisplay = document.createElement('div');
+            sentenceDisplay.className = 'sentence-display';
+
+            const wordsDiv = document.createElement('div');
+            wordsDiv.className = 'words-container';
+            if (idx === 0) {
+            wordsDiv.classList.add('expanded');
+            title.querySelector('.chapter-toggle').textContent = '▲';
+            }
+
+            chapter.words.forEach((word) => wordsDiv.appendChild(createWordCard(word)));
+            
+            // 이벤트 리스너: 제목 부분 클릭 시 토글
+            title.addEventListener('click', (e) => {
+                if (e.target.classList.contains('generate-btn')) return; // 버튼 클릭 시 제외
+                wordsDiv.classList.toggle('expanded');
+                title.querySelector('.chapter-toggle').textContent = wordsDiv.classList.contains('expanded') ? '▲' : '▼';
+            });
+
+            // 이벤트 리스너: 문장 만들기 버튼 클릭 시 AI 함수 호출
+            title.querySelector('.generate-btn').addEventListener('click', (e) => {
+                const btn = e.target;
+                generateSentenceWithLocalAI(chapter.words, sentenceDisplay, btn);
+            });
+
+            chapDiv.append(title, sentenceDisplay, wordsDiv); // 순서 변경: sentenceDisplay를 title 바로 아래에 추가
+            container.append(chapDiv);
+        });
+        resetAllCards();
+    }
+    
+    // --- 온디바이스 AI 문장 생성 함수 ---
     async function generateSentenceWithLocalAI(wordList, displayElement, buttonElement) {
-      buttonElement.disabled = true;
-      displayElement.style.display = 'block';
+        buttonElement.disabled = true;
+        displayElement.style.display = 'block';
 
-      try {
-        if (!generator) {
-          displayElement.innerHTML = '<div class="sentence-text">AI 모델을 처음 로드하는 중입니다... (약 10~20초 소요)</div>';
-          const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1');
-          generator = await pipeline('text-generation', 'Xenova/distilgpt2');
+        try {
+            if (!generator) {
+                displayElement.textContent = 'AI 모델을 처음으로 로드 중입니다. (인터넷 속도에 따라 10~20초 소요)';
+                // Transformers.js에서 'pipeline' 함수를 사용합니다.
+                const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1');
+                generator = await pipeline('text-generation', 'Xenova/distilgpt2');
+            }
+
+            displayElement.textContent = 'AI가 문장을 생성하고 있습니다...';
+            
+            const availableWords = wordList.map(item => item.word.toLowerCase().split(' ')[0]);
+            const uniqueWords = [...new Set(availableWords)];
+
+            const prompt = `Create one simple and grammatically correct English sentence using only the following words: ${uniqueWords.join(', ')}. The sentence is:`;
+
+            const result = await generator(prompt, {
+                max_new_tokens: 20,
+                no_repeat_ngram_size: 2,
+                num_return_sequences: 1,
+            });
+
+            let generatedSentence = result[0].generated_text;
+            
+            if (generatedSentence.startsWith(prompt)) {
+                generatedSentence = generatedSentence.substring(prompt.length).trim();
+            }
+
+            displayElement.textContent = generatedSentence || '적절한 문장을 만드는 데 실패했습니다. 다시 시도해주세요.';
+
+        } catch (error) {
+            console.error('On-device AI error:', error);
+            displayElement.textContent = '오류가 발생했습니다. 개발자 콘솔을 확인해주세요.';
+        } finally {
+            buttonElement.disabled = false;
         }
-
-        displayElement.innerHTML = '<div class="sentence-text">AI가 새로운 문장을 생성하고 있습니다...</div>';
-
-        const availableWords = wordList.map(item => item.word.toLowerCase().split(' ')[0]);
-        const uniqueWords = [...new Set(availableWords)];
-
-        // 랜덤 요소 추가로 매번 다른 문장 생성
-        const randomPrompts = [
-          `Write a simple sentence using these words: ${uniqueWords.slice(0, 5).join(', ')}.`,
-          `Create a short sentence with: ${uniqueWords.slice(2, 7).join(', ')}.`,
-          `Make a basic sentence using: ${uniqueWords.slice(1, 6).join(', ')}.`,
-          `Form a sentence with these words: ${uniqueWords.slice(0, 4).join(', ')}.`
-        ];
-        
-        const randomIndex = Math.floor(Math.random() * randomPrompts.length);
-        const prompt = randomPrompts[randomIndex];
-
-        const result = await generator(prompt, {
-          max_new_tokens: 15,
-          temperature: 0.8,      // 높은 온도로 창의성 증가
-          do_sample: true,       // 샘플링으로 다양성 확보
-          top_k: 50,            // 상위 50개 단어에서 선택
-          num_return_sequences: 1,
-          pad_token_id: 50256,  // GPT-2 모델의 패딩 토큰
-        });
-
-        let generatedSentence = result[0].generated_text;
-        
-        // 프롬프트 제거
-        if (generatedSentence.includes('.')) {
-          const sentences = generatedSentence.split('.');
-          generatedSentence = sentences[sentences.length - 2] + '.';
-        }
-        
-        generatedSentence = generatedSentence.replace(prompt, '').trim();
-        
-        if (!generatedSentence || generatedSentence.length < 5) {
-          const fallbackSentences = [
-            "I love special days.",
-            "Today is sunny and nice.",
-            "We buy fresh apples.",
-            "My mom makes delicious food.",
-            "The weather is beautiful today."
-          ];
-          generatedSentence = fallbackSentences[Math.floor(Math.random() * fallbackSentences.length)];
-        }
-
-        // 번역 (간단한 번역 매핑)
-        const translations = {
-          "I love special days.": "나는 특별한 날들을 좋아합니다.",
-          "Today is sunny and nice.": "오늘은 맑고 좋은 날입니다.",
-          "We buy fresh apples.": "우리는 신선한 사과를 삽니다.",
-          "My mom makes delicious food.": "우리 엄마는 맛있는 음식을 만듭니다.",
-          "The weather is beautiful today.": "오늘 날씨는 아름답습니다."
-        };
-
-        const koreanTranslation = translations[generatedSentence] || "생성된 문장의 한국어 번역";
-
-        displayElement.innerHTML = `
-          <div class="sentence-text">${generatedSentence}</div>
-          <div class="korean-translation">${koreanTranslation}</div>
-          <div class="sentence-controls">
-            <button class="tts-btn" onclick="speakText('${generatedSentence}', 'en')">🔊 영어로 읽기</button>
-            <button class="tts-btn" onclick="speakText('${koreanTranslation}', 'ko')">🔊 한국어로 읽기</button>
-          </div>
-        `;
-
-      } catch (error) {
-        console.error('AI 문장 생성 오류:', error);
-        displayElement.innerHTML = '<div class="sentence-text">문장 생성에 실패했습니다. 다시 시도해주세요.</div>';
-      } finally {
-        buttonElement.disabled = false;
-      }
     }
 
-    // TTS 함수
-    function speakText(text, lang) {
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(text);
-        if (lang === 'en' && englishVoice) {
-          utterance.voice = englishVoice;
-        } else if (lang === 'ko' && koreanVoice) {
-          utterance.voice = koreanVoice;
-        }
-        utterance.lang = lang === 'en' ? 'en-US' : 'ko-KR';
-        speechSynthesis.speak(utterance);
-      }
-    }
 
-    // 전역 함수로 등록
-    window.speakText = speakText;
-
-    // 언어 탭 이벤트
-    document.querySelectorAll('.lang-btn').forEach(btn => {
+    // --- 언어 탭 클릭 이벤트 ---
+    document.querySelectorAll('.lang-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.lang-btn').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
         defaultFaceIndex = parseInt(btn.dataset.face);
         initializeApp();
       });
     });
+
   </script>
 </body>
 </html>
